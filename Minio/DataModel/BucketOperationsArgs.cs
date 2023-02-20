@@ -43,6 +43,13 @@ public class RemoveBucketArgs : BucketArgs<RemoveBucketArgs>
     {
         RequestMethod = HttpMethod.Delete;
     }
+
+    internal override HttpRequestMessageBuilder BuildRequest(HttpRequestMessageBuilder requestMessageBuilder)
+    {
+        if (Headers.ContainsKey(BucketForceDeleteKey))
+            requestMessageBuilder.AddHeaderParameter(BucketForceDeleteKey, Headers[BucketForceDeleteKey]);
+        return requestMessageBuilder;
+    }
 }
 
 public class MakeBucketArgs : BucketArgs<MakeBucketArgs>
@@ -532,7 +539,7 @@ public class SetBucketTagsArgs : BucketArgs<SetBucketTagsArgs>
 
     public SetBucketTagsArgs WithTagging(Tagging tags)
     {
-        BucketTags = Tagging.GetObjectTags(tags.GetTags());
+        BucketTags = Tagging.GetBucketTags(tags.GetTags());
         return this;
     }
 

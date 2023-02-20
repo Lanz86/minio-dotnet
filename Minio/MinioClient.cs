@@ -41,7 +41,7 @@ public class InnerItemType
     public string value { get; set; }
 }
 
-public partial class MinioClient
+public partial class MinioClient : IMinioClient
 {
     private const string RegistryAuthHeaderKey = "X-Registry-Auth";
 
@@ -195,6 +195,44 @@ public partial class MinioClient
     }
 
     /// <summary>
+    ///     Sets app version and name. Used for constructing User-Agent header in all HTTP requests
+    /// </summary>
+    /// <param name="appName"></param>
+    /// <param name="appVersion"></param>
+    public void SetAppInfo(string appName, string appVersion)
+    {
+        if (string.IsNullOrEmpty(appName))
+            throw new ArgumentException("Appname cannot be null or empty", nameof(appName));
+
+        if (string.IsNullOrEmpty(appVersion))
+            throw new ArgumentException("Appversion cannot be null or empty", nameof(appVersion));
+
+        CustomUserAgent = $"{appName}/{appVersion}";
+    }
+
+    /// <summary>
+    ///     Sets HTTP tracing On.Writes output to Console
+    /// </summary>
+    public void SetTraceOn(IRequestLogger logger = null)
+    {
+        this.logger = logger ?? new DefaultRequestLogger();
+        trace = true;
+    }
+
+    /// <summary>
+    ///     Sets HTTP tracing Off.
+    /// </summary>
+    public void SetTraceOff()
+    {
+        trace = false;
+    }
+
+    public void Dispose()
+    {
+        if (disposeHttpClient) HTTPClient?.Dispose();
+    }
+
+    /// <summary>
     ///     Resolve region of the bucket.
     /// </summary>
     /// <param name="bucketName"></param>
@@ -243,7 +281,9 @@ public partial class MinioClient
     internal async Task<HttpRequestMessageBuilder> CreateRequest<T>(BucketArgs<T> args) where T : BucketArgs<T>
     {
         ArgsCheck(args);
-        var requestMessageBuilder = await CreateRequest(args.RequestMethod, args.BucketName).ConfigureAwait(false);
+        var requestMessageBuilder =
+            await CreateRequest(args.RequestMethod, args.BucketName, headerMap: args.Headers,
+                isBucketCreationRequest: args.IsBucketCreationRequest).ConfigureAwait(false);
         return args.BuildRequest(requestMessageBuilder);
     }
 
@@ -281,6 +321,7 @@ public partial class MinioClient
     /// <param name="contentType">Content Type</param>
     /// <param name="body">request body</param>
     /// <param name="resourcePath">query string</param>
+    /// <param name="isBucketCreationRequest">boolean to define bucket creation</param>
     /// <returns>A HttpRequestMessage builder</returns>
     /// <exception cref="BucketNotFoundException">When bucketName is invalid</exception>
     internal async Task<HttpRequestMessageBuilder> CreateRequest(
@@ -290,14 +331,15 @@ public partial class MinioClient
         Dictionary<string, string> headerMap = null,
         string contentType = "application/octet-stream",
         byte[] body = null,
-        string resourcePath = null)
+        string resourcePath = null,
+        bool isBucketCreationRequest = false)
     {
         var region = string.Empty;
         if (bucketName != null)
         {
             utils.ValidateBucketName(bucketName);
             // Fetch correct region for bucket if this is not a bucket creation
-            if (method != HttpMethod.Put)
+            if (!isBucketCreationRequest)
                 region = await GetRegion(bucketName).ConfigureAwait(false);
         }
 
@@ -387,22 +429,6 @@ public partial class MinioClient
         }
 
         return messageBuilder;
-    }
-
-    /// <summary>
-    ///     Sets app version and name. Used for constructing User-Agent header in all HTTP requests
-    /// </summary>
-    /// <param name="appName"></param>
-    /// <param name="appVersion"></param>
-    public void SetAppInfo(string appName, string appVersion)
-    {
-        if (string.IsNullOrEmpty(appName))
-            throw new ArgumentException("Appname cannot be null or empty", nameof(appName));
-
-        if (string.IsNullOrEmpty(appVersion))
-            throw new ArgumentException("Appversion cannot be null or empty", nameof(appVersion));
-
-        CustomUserAgent = $"{appName}/{appVersion}";
     }
 
     /// <summary>
@@ -794,23 +820,6 @@ public partial class MinioClient
     }
 
     /// <summary>
-    ///     Sets HTTP tracing On.Writes output to Console
-    /// </summary>
-    public void SetTraceOn(IRequestLogger logger = null)
-    {
-        this.logger = logger ?? new DefaultRequestLogger();
-        trace = true;
-    }
-
-    /// <summary>
-    ///     Sets HTTP tracing Off.
-    /// </summary>
-    public void SetTraceOff()
-    {
-        trace = false;
-    }
-
-    /// <summary>
     ///     Logs the request sent to server and corresponding response
     /// </summary>
     /// <param name="request"></param>
@@ -855,11 +864,6 @@ public partial class MinioClient
         return retryPolicyHandler == null
             ? executeRequestCallback()
             : retryPolicyHandler(executeRequestCallback);
-    }
-
-    public void Dispose()
-    {
-        if (disposeHttpClient) HTTPClient?.Dispose();
     }
 }
 

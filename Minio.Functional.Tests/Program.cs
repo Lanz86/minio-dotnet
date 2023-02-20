@@ -116,6 +116,7 @@ internal class Program
 
         // Test removal of bucket
         FunctionalTest.RemoveBucket_Test1(minioClient).Wait();
+        FunctionalTest.RemoveBucket_Test2(minioClient).Wait();
 
         // Test ListBuckets function
         FunctionalTest.ListBuckets_Test(minioClient).Wait();
@@ -140,6 +141,8 @@ internal class Program
         // and length parameters. Tests will be reported as GetObject_Test3,
         // GetObject_Test4 and GetObject_Test5.
         FunctionalTest.GetObject_3_OffsetLength_Tests(minioClient).Wait();
+        // Test async callback function to download an object
+        FunctionalTest.GetObject_AsyncCallback_Test1(minioClient).Wait();
 
         // Test File GetObject and PutObject functions
         FunctionalTest.FGetObject_Test1(minioClient).Wait();
@@ -193,6 +196,9 @@ internal class Program
 
         // Test GetBucket policy
         FunctionalTest.GetBucketPolicy_Test1(minioClient).Wait();
+
+        // Test object versioning
+        FunctionalTest.ObjectVersioningAsync_Test1(minioClient).Wait();
 
         // Test Object Lock Configuration
         FunctionalTest.ObjectLockConfigurationAsync_Test1(minioClient).Wait();
